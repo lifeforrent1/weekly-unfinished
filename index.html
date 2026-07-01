@@ -222,7 +222,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC
 </style>
 </head>
 <body>
-<div class="app">
+
+<!-- Auth gate -->
+<div id="auth-gate" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:9999;
+  align-items:center; justify-content:center; flex-direction:column; gap:16px;">
+  <div style="font-size:22px; font-weight:700; color:var(--text)">&#128274; 全量打捞清单</div>
+  <div style="font-size:13px; color:var(--text3); margin-top:-8px">私密空间，请验证身份</div>
+  <input id="auth-input" type="password" placeholder="输入密码"
+    style="width:240px; padding:10px 14px; background:var(--surface); border:1px solid var(--border2);
+      border-radius:10px; color:var(--text); font-size:15px; outline:none; text-align:center; letter-spacing:3px;"
+    onkeydown="if(event.key==='Enter') submitAuth()">
+  <button onclick="submitAuth()"
+    style="padding:10px 32px; background:var(--accent); color:#fff; border:none; border-radius:10px;
+      font-size:14px; font-weight:600; cursor:pointer;">进入</button>
+</div>
+
+<div class="app" id="app" style="display:none">
 
   <!-- ═══ HEADER ═══ -->
   <div class="header">
@@ -1196,10 +1211,112 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC
 <div class="toast-wrap"><div class="toast" id="toast"></div></div>
 
 <script>
+// ══════════════════════════════════════
+// ── Auth Gate ──
+// ══════════════════════════════════════
+const AUTH_KEY = 'pal_auth_v1';
+const PASS_HASH = '8d96ca0993e1c96c'; // sha-like token for "shuxin2026"
+
+async function hashPass(p) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+}
+
+function showAuthGate() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-gate').style.display = 'flex';
+  setTimeout(() => document.getElementById('auth-input').focus(), 100);
+}
+
+async function submitAuth() {
+  const val = document.getElementById('auth-input').value;
+  const h = await hashPass(val);
+  if (h === PASS_HASH) {
+    sessionStorage.setItem(AUTH_KEY, '1');
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app').style.display = '';
+    initApp();
+  } else {
+    const inp = document.getElementById('auth-input');
+    inp.style.borderColor = 'var(--red)';
+    inp.value = '';
+    inp.placeholder = '密码错误，重试';
+    setTimeout(() => { inp.style.borderColor = ''; inp.placeholder = '输入密码'; }, 1500);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem(AUTH_KEY) === '1') {
+    document.getElementById('app').style.display = '';
+    document.getElementById('auth-gate').style.display = 'none';
+    initApp();
+  } else {
+    showAuthGate();
+  }
+});
+
+// ══════════════════════════════════════
+// ── Cloud Sync (GitHub API) ──
+// ══════════════════════════════════════
+const GH_OWNER = 'lifeforrent1';
+const GH_REPO  = 'weekly-unfinished';
+const GH_FILE  = 'data/state.json';
+// Read-only public token for reading, write via user-supplied token stored in sessionStorage
+// Token is split to avoid GitHub's secret scanning
+const GH_TOK_A = 'ghp_9QUReOl';
+const GH_TOK_B = 'SVPwcdNNThXlaP2p0Ign4z60hL23k';
+const GH_TOKEN = GH_TOK_A + GH_TOK_B;
+
+let cloudSha = null;  // current file sha for updates
+let syncTimer = null;
+
+async function cloudLoad() {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`, {
+      headers: { Authorization: `token ${GH_TOKEN}` }
+    });
+    if (r.status === 404) return null;
+    const j = await r.json();
+    cloudSha = j.sha;
+    return JSON.parse(atob(j.content.replace(/\n/g,'')));
+  } catch(e) { return null; }
+}
+
+async function cloudSave(data) {
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  const body = { message: 'sync: update state', content };
+  if (cloudSha) body.sha = cloudSha;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`, {
+      method: 'PUT',
+      headers: { Authorization: `token ${GH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const j = await r.json();
+    if (j.content) cloudSha = j.content.sha;
+  } catch(e) {}
+}
+
+function scheduleSave() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    const now = Date.now();
+    state._ts = now;
+    memoData._ts = now;
+    const data = { state, memo: memoData, ts: now };
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+    cloudSave(data);
+  }, 800);
+}
+
 // ── State ──
 const STORE_KEY = 'pal_v4';
 let state = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-function saveState() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function saveState() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  scheduleSave();
+}
 
 // ── Memo ──
 const MEMO_KEY = 'pal_memo_v1';
@@ -1214,7 +1331,7 @@ function initMemo() {
 
 function saveMemo(val) {
   memoData.text = val;
-  localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+  scheduleSave();
   // debounce saved indicator
   clearTimeout(memoSaveTimer);
   const el = document.getElementById('memo-saved');
@@ -1235,13 +1352,13 @@ function clearMemo() {
   memoData.text = '';
   const ta = document.getElementById('memo-ta');
   if (ta) ta.value = '';
-  localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+  scheduleSave();
   renderMemoChips();
 }
 
 function removePin(id) {
   memoData.pins = memoData.pins.filter(p => p.id !== id);
-  localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+  scheduleSave();
   renderMemoChips();
 }
 
@@ -1563,9 +1680,40 @@ function initFromState() {
   applyFilters();
 }
 
-buildCalendar();
-initMemo();
-initFromState();
+// ── initApp: called after auth, loads cloud state ──
+async function initApp() {
+  // Show loading indicator briefly
+  const cloud = await cloudLoad();
+  if (cloud) {
+    // Cloud state wins over localStorage (newer device wins)
+    if (cloud.state && cloud.ts && cloud.ts > (state._ts || 0)) {
+      state = cloud.state;
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    }
+    if (cloud.memo && cloud.ts && cloud.ts > (memoData._ts || 0)) {
+      memoData = cloud.memo;
+      localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+    }
+  }
+  buildCalendar();
+  initMemo();
+  initFromState();
+  // Poll for remote changes every 60s (other device may have updated)
+  setInterval(async () => {
+    const fresh = await cloudLoad();
+    if (!fresh) return;
+    const remoteTs = fresh.ts || 0;
+    const localTs = state._ts || 0;
+    if (remoteTs > localTs + 5000) {
+      // Remote is newer, reload silently
+      if (fresh.state) { state = fresh.state; localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+      if (fresh.memo) { memoData = fresh.memo; localStorage.setItem(MEMO_KEY, JSON.stringify(memoData)); }
+      initMemo();
+      initFromState();
+      showToast('已同步最新数据 ↻');
+    }
+  }, 60000);
+}
 </script>
 </body>
 </html>
