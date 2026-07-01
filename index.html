@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全量打捞清单 · 两个空间</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424;
+  --border: #2e2e2e; --border2: #3a3a3a;
+  --text: #e8e8e6; --text2: #b8b8b6; --text3: #787876;
+  --accent: #4f80ff; --red: #e05252; --orange: #e08844;
+  --green: #4caf50; --purple: #9b7be8; --teal: #26a69a;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+.app { max-width: 720px; margin: 0 auto; padding: 0 0 100px; }
+
+/* ── Header ── */
+.header { padding: 24px 20px 0; background: var(--bg); }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+.header-title { font-size: 20px; font-weight: 700; }
+.header-meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.header-stats { display: flex; gap: 16px; }
+.stat-chip .n { font-size: 22px; font-weight: 700; line-height: 1; }
+.stat-chip .l { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+/* ── Mini calendar ── */
+.cal-wrap { margin-top: 10px; }
+.cal-week-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.cal-week-label { font-size: 11px; font-weight: 600; color: var(--text2); flex: 1; }
+.cal-nav-btn { background: none; border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text3); font-size: 13px; width: 22px; height: 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all .12s; line-height: 1; }
+.cal-nav-btn:hover { border-color: var(--text3); color: var(--text); }
+.cal-week-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.cal-week-chip { padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  border: 1px solid var(--border2); background: transparent; color: var(--text3);
+  cursor: pointer; transition: all .12s; white-space: nowrap; }
+.cal-week-chip:hover { border-color: var(--text3); color: var(--text2); }
+.cal-week-chip.on { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.mini-cal { display: flex; gap: 2px; align-items: flex-end;
+  padding: 10px 12px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
+.cal-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.cal-dow { font-size: 9px; color: var(--text3); font-weight: 500; }
+.cal-num { font-size: 13px; font-weight: 600; color: var(--text2);
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 7px; }
+.cal-num.today { background: var(--accent); color: #fff; }
+.cal-num.has-task { color: var(--text); position: relative; }
+.cal-num.has-task::after { content: ''; position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%; background: var(--orange); }
+.cal-num.urgent-day::after { background: var(--red); }
+.cal-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; margin: 0 2px; align-self: center; }
+
+/* ── Exec bar ── */
+.exec-bar { display: flex; align-items: center; gap: 10px; padding: 10px 0 12px; border-bottom: 1px solid var(--border); }
+.exec-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.exec-fill { height: 100%; border-radius: 2px; background: var(--green); transition: width .5s ease; }
+.exec-label { font-size: 12px; color: var(--text3); flex-shrink: 0; }
+.hist-btn { font-size: 11px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0 4px; }
+.hist-btn:hover { text-decoration: underline; }
+
+/* ── Memo box ── */
+.memo-wrap { margin: 10px 0 0; }
+.memo-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.memo-icon { color: var(--text3); flex-shrink: 0; }
+.memo-title { font-size: 12px; font-weight: 600; color: var(--text3); flex: 1; }
+.memo-clear { font-size: 11px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 0; opacity: .6; }
+.memo-clear:hover { color: var(--red); opacity: 1; }
+.memo-saved { font-size: 10px; color: var(--green); opacity: 0; transition: opacity .3s; }
+.memo-saved.show { opacity: 1; }
+.memo-textarea { width: 100%; min-height: 72px; max-height: 240px; resize: vertical;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); font-size: 13px; font-family: inherit; padding: 10px 12px;
+  outline: none; line-height: 1.55; transition: border-color .15s; }
+.memo-textarea::placeholder { color: var(--text3); }
+.memo-textarea:focus { border-color: var(--border2); }
+.memo-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.memo-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px 3px 10px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+  font-size: 11px; color: var(--text2); }
+.memo-chip-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px;
+  line-height: 1; padding: 0; margin-left: 2px; transition: color .12s; }
+.memo-chip-del:hover { color: var(--red); }
+
+/* ── Filters ── */
+.filters { padding: 10px 20px 0; display: flex; flex-direction: column; gap: 7px; }
+.filter-row { display: flex; align-items: center; gap: 8px; }
+.filter-label { font-size: 11px; color: var(--text3); width: 56px; flex-shrink: 0; font-weight: 500;
+  display: flex; align-items: center; gap: 4px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { padding: 4px 11px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all .12s; }
+.tab:hover { border-color: var(--text3); color: var(--text); }
+.tab.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+/* ── List ── */
+.list { padding: 10px 20px 0; display: flex; flex-direction: column; gap: 6px; }
+
+/* ── Item ── */
+.item { border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  overflow: hidden; transition: border-color .15s; }
+.item:hover { border-color: var(--border2); }
+.item.done-item { opacity: 1; }
+.item.hidden { display: none; }
+.item.urgent { border-color: #e0525233; }
+.item.urgent .item-row { border-left: 3px solid var(--red); }
+.item.warn .item-row { border-left: 3px solid var(--orange); }
+
+/* ── Item row ── */
+.item-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+  cursor: pointer; user-select: none; }
+.item-check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  cursor: pointer; transition: all .12s; font-size: 10px; }
+.item-check:hover { border-color: var(--green); }
+.item-check.done { background: var(--green); border-color: var(--green); color: #fff; }
+.item-main { flex: 1; min-width: 0; }
+.item-title { font-size: 13.5px; font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.done-item .item-title { text-decoration: line-through; color: var(--text2); }
+.item-tags { display: flex; gap: 5px; margin-top: 4px; align-items: center; flex-wrap: wrap; }
+.tag { font-size: 11px; padding: 1px 7px; border-radius: 4px;
+  background: var(--surface2); color: var(--text2); white-space: nowrap; }
+.tag.red    { background: #e0525215; color: var(--red); }
+.tag.orange { background: #e0884415; color: var(--orange); }
+.tag.blue   { background: #4f80ff15; color: var(--accent); }
+.tag.green  { background: #4caf5015; color: var(--green); }
+.tag.purple { background: #9b7be815; color: var(--purple); }
+.tag.teal   { background: #26a69a15; color: var(--teal); }
+.item-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.item-pct { font-size: 12px; color: var(--text3); }
+.item-chevron { font-size: 10px; color: var(--text3); transition: transform .15s; line-height: 1; }
+.item.open .item-chevron { transform: rotate(90deg); }
+
+/* ── Item detail ── */
+.item-detail { display: none; padding: 0 14px 14px; border-top: 1px solid var(--border); }
+.item.open .item-detail { display: block; }
+.detail-section { margin-top: 12px; }
+.detail-label { font-size: 10px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
+.progress-bar { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+.progress-fill { height: 100%; border-radius: 2px; }
+.progress-text { font-size: 11px; color: var(--text3); }
+.steps { display: flex; flex-direction: column; gap: 5px; }
+.step { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; }
+.step-dot { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center; font-size: 8px; }
+.step-dot.done  { background: #4caf5020; color: var(--green); }
+.step-dot.todo  { background: var(--surface2); color: var(--text3); border: 1px dashed var(--border2); }
+.step-dot.block { background: #e0525220; color: var(--red); }
+.step-text { flex: 1; color: var(--text2); line-height: 1.5; }
+.step-text.done { color: var(--text3); text-decoration: line-through; text-decoration-color: var(--border2); }
+.next-box { background: var(--surface2); border-left: 2px solid var(--accent);
+  border-radius: 6px; padding: 9px 12px; margin-top: 10px; }
+.next-box-label { font-size: 10px; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.next-box-text { font-size: 12.5px; color: var(--text2); line-height: 1.5; }
+
+/* memory insight box */
+.memory-box { background: #4f80ff08; border: 1px solid #4f80ff22;
+  border-radius: 6px; padding: 9px 12px; margin-top: 8px; }
+.memory-box-label { font-size: 10px; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+.memory-box-text { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.memory-kv { display: flex; flex-direction: column; gap: 3px; }
+.memory-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
+.memory-key { color: var(--text3); flex-shrink: 0; min-width: 56px; }
+.memory-val { color: var(--text2); flex: 1; }
+
+.action-row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.action-btn { font-size: 11.5px; padding: 5px 12px; border-radius: 6px;
+  border: 1px solid var(--border2); background: transparent; color: var(--text2);
+  cursor: pointer; transition: all .12s; }
+.action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.action-btn.rolled { border-color: var(--accent); color: var(--accent); background: #4f80ff10; cursor: default; }
+.ts-text { font-size: 11px; color: var(--green); margin-left: auto; }
+.countdown { font-size: 11px; color: var(--red); font-weight: 600; }
+
+/* ── Section divider ── */
+.section-divider { padding: 18px 20px 4px; display: flex; align-items: center; gap: 10px; }
+.section-divider-label { font-size: 11px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .8px; white-space: nowrap; }
+.section-divider-line { flex: 1; height: 1px; background: var(--border); }
+.section-divider-count { font-size: 11px; color: var(--text3); white-space: nowrap; }
+
+/* ── Empty state ── */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text3); }
+
+/* ── History modal ── */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s; }
+.modal-bg.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px;
+  padding: 24px; max-width: 420px; width: 90%; transform: translateY(10px); transition: transform .2s; }
+.modal-bg.open .modal { transform: translateY(0); }
+.modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.hist-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.hist-row:last-of-type { border-bottom: none; }
+.hist-week { font-size: 11px; color: var(--text3); width: 56px; flex-shrink: 0; }
+.hist-track { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.hist-fill { height: 100%; border-radius: 3px; }
+.hist-pct { font-size: 12px; font-weight: 600; color: var(--text2); width: 32px; text-align: right; flex-shrink: 0; }
+.modal-close { width: 100%; margin-top: 16px; padding: 9px; border-radius: 8px;
+  border: 1px solid var(--border2); background: transparent; color: var(--text2);
+  cursor: pointer; font-size: 13px; transition: background .12s; }
+.modal-close:hover { background: var(--surface2); }
+
+/* ── Toast ── */
+.toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; }
+.toast { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border2);
+  opacity: 0; transform: translateY(8px); transition: all .25s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 600px) {
+  .header-title { font-size: 17px; }
+  .item-title { font-size: 13px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-title">全量打捞清单</div>
+        <div class="header-meta">workshop-ae47f1 &amp; 111-f2deb0 · 全部时间 &nbsp;·&nbsp; 最后更新 2026-07-01</div>
+      </div>
+      <div class="header-stats">
+        <div class="stat-chip" style="text-align:right">
+          <div class="n" id="stat-left" style="color:var(--red)">—</div>
+          <div class="l">未完成</div>
+        </div>
+        <div class="stat-chip" style="text-align:right">
+          <div class="n" id="stat-done" style="color:var(--green)">—</div>
+          <div class="l">已完结</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cal wrap: week nav + chips + grid -->
+    <div class="cal-wrap">
+      <div class="cal-week-nav">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" style="flex-shrink:0">
+          <rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <div class="cal-week-label" id="cal-week-label">本周</div>
+        <button class="cal-nav-btn" onclick="shiftWeek(-1)">‹</button>
+        <button class="cal-nav-btn" onclick="shiftWeek(1)">›</button>
+      </div>
+      <div class="cal-week-chips" id="cal-week-chips">
+        <!-- filled by JS -->
+      </div>
+      <div class="mini-cal" id="mini-cal"><!-- filled by JS --></div>
+    </div>
+
+    <!-- Exec bar -->
+    <div class="exec-bar">
+      <div class="exec-label" id="exec-label">— / — 完成</div>
+      <div class="exec-track"><div class="exec-fill" id="exec-fill" style="width:0%"></div></div>
+      <button class="hist-btn" onclick="openHist()">历史</button>
+    </div>
+
+    <!-- Memo box -->
+    <div class="memo-wrap">
+      <div class="memo-header">
+        <svg class="memo-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        <div class="memo-title">临时备忘</div>
+        <span class="memo-saved" id="memo-saved">✓ 已保存</span>
+        <button class="memo-clear" onclick="clearMemo()" title="清空">清空</button>
+      </div>
+      <textarea class="memo-textarea" id="memo-ta" placeholder="随手记点什么…" oninput="saveMemo(this.value)"></textarea>
+      <div class="memo-chips" id="memo-chips"></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-row">
+        <div class="filter-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M3 7h18M3 12h18M3 17h18" stroke-dasharray="3 1.5"/></svg>
+          场景
+        </div>
+        <div class="tabs" id="cat-tabs">
+          <button class="tab on" data-cat="all">全部</button>
+          <button class="tab" data-cat="money">理财 &amp; 房产</button>
+          <button class="tab" data-cat="travel">旅行</button>
+          <button class="tab" data-cat="work">广告策略</button>
+          <button class="tab" data-cat="tools">工具 &amp; AI</button>
+          <button class="tab" data-cat="growth">成长 &amp; 文艺</button>
+          <button class="tab" data-cat="life">生活事务</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          状态
+        </div>
+        <div class="tabs" id="status-tabs">
+          <button class="tab on" data-status="all">全部</button>
+          <button class="tab" data-status="active">未完成</button>
+          <button class="tab" data-status="done">已完结</button>
+          <button class="tab" data-status="urgent">紧急</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ LIST ═══ -->
+  <div class="list" id="item-list">
+
+    <!-- ── Section: 未完成 ── -->
+    <div class="section-divider">
+      <div class="section-divider-label">未完成 · 待推进</div>
+      <div class="section-divider-line"></div>
+      <div class="section-divider-count" id="active-count"></div>
+    </div>
+
+    <!-- c1: 深圳房产阿里拍卖 -->
+    <div class="item urgent" data-id="c1" data-cat="money" data-status="active" data-p="p0">
+      <div class="item-row" onclick="toggleItem('c1')">
+        <div class="item-check" id="chk-c1" onclick="event.stopPropagation();doneToggle('c1')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e08844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <path d="M3 11L12 3l9 8"/><path d="M5 9v10a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1V9"/></svg>
+        <div class="item-main">
+          <div class="item-title">深圳房产阿里拍卖 — 追问合同条款</div>
+          <div class="item-tags">
+            <span class="tag">理财 &amp; 房产</span>
+            <span class="tag red">P0 · 今天</span>
+            <span class="countdown" id="cd-c1"></span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">55%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-section">
+          <div class="detail-label">进展</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:55%;background:var(--red)"></div></div>
+          <div class="progress-text">风险评估完成 55%，3个高风险点已识别，关键追问未发出</div>
+        </div>
+        <div class="detail-section">
+          <div class="steps">
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">起草6大类问题清单（费用/定价/签约主体/买家资质/合同条款/时间线）</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">向拍卖方发送简化版问题并获得回复</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">逐条分析，识别4个高风险点</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">追问3个核心问题（佣金含税确认 / 买家资质审核机制 / 违约保证金分配）</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">要求查看合同样本，不签任何协议</div></div>
+          </div>
+          <div class="next-box">
+            <div class="next-box-label">下一步</div>
+            <div class="next-box-text">发3条追问，要求先看合同样本再决定。参考乐有家速销模式独家委托风险，阿里委托协议违约金20万起、撤拍代价极重。</div>
+          </div>
+        </div>
+        <div class="memory-box">
+          <div class="memory-box-label">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>
+            Memory 存档
+          </div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">高风险①</span><span class="memory-val">佣金从2.5%→3%，未明确是否含税</span></div>
+            <div class="memory-row"><span class="memory-key">高风险②</span><span class="memory-val">流拍费"适当费用"定义模糊，存在陷阱</span></div>
+            <div class="memory-row"><span class="memory-key">高风险③</span><span class="memory-val">买家资质审核机制回答敷衍，未说明</span></div>
+            <div class="memory-row"><span class="memory-key">高风险④</span><span class="memory-val">买家违约保证金分配方案不清晰</span></div>
+            <div class="memory-row"><span class="memory-key">乐有家坑</span><span class="memory-val">1000元保证金绑定 + 独家委托陷阱</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="jumpToChat('c1')">继续对话</button>
+          <button class="action-btn" onclick="copyFollowup('c1')">复制续接 Prompt</button>
+          <button class="action-btn" id="roll-c1" onclick="rollCard('c1')">滚入下周</button>
+          <span class="ts-text" id="ts-c1"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- c3: 新西兰旅行 -->
+    <div class="item warn" data-id="c3" data-cat="travel" data-status="active" data-p="p1">
+      <div class="item-row" onclick="toggleItem('c3')">
+        <div class="item-check" id="chk-c3" onclick="event.stopPropagation();doneToggle('c3')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4f80ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <path d="M21 16v-2l-8-5V3a2 2 0 00-4 0v6L1 14v2l8-2.5V19l-2 1.5V22l4-1 4 1v-1.5L13 19v-5.5L21 16z"/></svg>
+        <div class="item-main">
+          <div class="item-title">新西兰皇后镇 + 瓦纳卡 — 租车 &amp; 住宿未落地</div>
+          <div class="item-tags">
+            <span class="tag">旅行规划</span>
+            <span class="tag orange">P1 · 本周内</span>
+            <span class="countdown" id="cd-c3"></span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">60%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-section">
+          <div class="detail-label">进展</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:60%;background:var(--orange)"></div></div>
+          <div class="progress-text">行程方案已规划，优化为租3天车，预订未落地</div>
+        </div>
+        <div class="detail-section">
+          <div class="steps">
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">了解核心景点，制定5天行程（10.2-10.7）</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">优化租车方案：改为3天（10.4-10.7），节省约500-1000元</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">Rentalcars / JUCY 等平台比价并预订（买全险）</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">预订皇后镇市区3晚 + 瓦纳卡湖边3晚住宿</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">提前预订蹦极/跳伞/箭镇一日游（10月旺季周末极易约满）</div></div>
+          </div>
+          <div class="next-box">
+            <div class="next-box-label">下一步</div>
+            <div class="next-box-text">10月旺季，现在是最佳预订时机。优先锁定租车，再订住宿。</div>
+          </div>
+        </div>
+        <div class="memory-box">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>Memory 存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">日期</span><span class="memory-val">10.2-10.7（5天）</span></div>
+            <div class="memory-row"><span class="memory-key">行程</span><span class="memory-val">10.2-4皇后镇市区 → 10.4箭镇一日游 → 10.4-7自驾皇冠山口→瓦纳卡→格伦诺基</span></div>
+            <div class="memory-row"><span class="memory-key">租车</span><span class="memory-val">租3天（非5天），节省500-1000元，前两天Uber出行</span></div>
+            <div class="memory-row"><span class="memory-key">平台</span><span class="memory-val">Rentalcars / Discover Cars / JUCY</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="jumpToChat('c3')">继续对话</button>
+          <button class="action-btn" onclick="copyFollowup('c3')">复制续接 Prompt</button>
+          <button class="action-btn" id="roll-c3" onclick="rollCard('c3')">滚入下周</button>
+          <span class="ts-text" id="ts-c3"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- c4: PCOC选择偏差 -->
+    <div class="item" data-id="c4" data-cat="work" data-status="active" data-p="p2">
+      <div class="item-row" onclick="toggleItem('c4')">
+        <div class="item-check" id="chk-c4" onclick="event.stopPropagation();doneToggle('c4')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9b7be8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">PCOC 选择偏差机制 — 实验验证方案未落地</div>
+          <div class="item-tags">
+            <span class="tag">广告策略</span>
+            <span class="tag blue">P2 · 下次开工</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">65%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-section">
+          <div class="detail-label">进展</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:65%;background:var(--purple)"></div></div>
+          <div class="progress-text">根因已分析清楚，线上实验验证方案未讨论</div>
+        </div>
+        <div class="detail-section">
+          <div class="steps">
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">质疑"先高估再收敛"与新特征修正PCOC低估的直觉矛盾</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">找到根因：早期exp样本选择偏差 → 模型误学 → 初期PCOC高估 → 样本增多后校准</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">设计线上实验，检测并量化选择偏差的程度</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">讨论 IPW（逆概率加权）或 DRO 方法在早期阶段消偏的可行性</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">与现有 PCOC 校准方案的结合路径</div></div>
+          </div>
+          <div class="next-box">
+            <div class="next-box-label">下一步</div>
+            <div class="next-box-text">续接讨论：①实验设计方案检验选择偏差；②IPW/DRO早期消偏；③与PCOC校准方案结合路径。</div>
+          </div>
+        </div>
+        <div class="memory-box">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>相关知识积累</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">根因</span><span class="memory-val">高意向用户优先被发券→样本选择偏差→模型误学→PCOC初期高估→样本增多后校准</span></div>
+            <div class="memory-row"><span class="memory-key">AUC</span><span class="memory-val">衡量排序能力，不可微，用于评估，不能跨群体比较数值偏差</span></div>
+            <div class="memory-row"><span class="memory-key">Loss</span><span class="memory-val">衡量预估偏差，可微，用于训练</span></div>
+            <div class="memory-row"><span class="memory-key">PCOC</span><span class="memory-val">业务诊断首选，能看出高估/低估及分层问题</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="jumpToChat('c4')">继续对话</button>
+          <button class="action-btn" onclick="copyFollowup('c4')">复制续接 Prompt</button>
+          <button class="action-btn" id="roll-c4" onclick="rollCard('c4')">滚入下周</button>
+          <span class="ts-text" id="ts-c4"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- c2: 中国房价×AI -->
+    <div class="item" data-id="c2" data-cat="money" data-status="active" data-p="p2">
+      <div class="item-row" onclick="toggleItem('c2')">
+        <div class="item-check" id="chk-c2" onclick="event.stopPropagation();doneToggle('c2')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e08844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <path d="M3 11L12 3l9 8"/><path d="M5 9v10a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1V9"/></svg>
+        <div class="item-main">
+          <div class="item-title">中国房价×AI就业冲击 — 第二轮深度研究未展开</div>
+          <div class="item-tags">
+            <span class="tag">理财 &amp; 房产</span>
+            <span class="tag blue">P2 · 下次开工</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">70%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-section">
+          <div class="detail-label">进展</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:70%;background:var(--purple)"></div></div>
+          <div class="progress-text">第一轮框架（四大制度驱动+AI双向影响）建立完成，AI极化分配专题未展开</div>
+        </div>
+        <div class="detail-section">
+          <div class="steps">
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">分析北上广深房价四大制度性驱动因素（土地财政/货币超发/城镇化/权益绑定）</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">AI双向影响分析：短期财富效应支撑 vs 中长期就业预期动摇</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">识别4个"待验证"关键问题</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">展开AI极化分配专题：自由职业者与被替代中产知识工作者的购房决策变化</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">分析中国政策能否在就业大规模替代前提前托底</div></div>
+          </div>
+          <div class="next-box">
+            <div class="next-box-label">下一步</div>
+            <div class="next-box-text">切入：AI极化分配框架——哪类人群购房决策逻辑根本性改变。</div>
+          </div>
+        </div>
+        <div class="memory-box">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>框架存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">核心逻辑</span><span class="memory-val">制度性垄断资产逻辑是根本驱动，政策是约束变量，收入预期是心理锚点</span></div>
+            <div class="memory-row"><span class="memory-key">AI短期</span><span class="memory-val">财富效应→科技从业者预期提升→支撑核心区房价</span></div>
+            <div class="memory-row"><span class="memory-key">AI中长期</span><span class="memory-val">白领就业预期动摇→抑制购房意愿，加速阶层分化</span></div>
+            <div class="memory-row"><span class="memory-key">深圳特情</span><span class="memory-val">74万套保障房十四五规划，非核心区去化慢</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="jumpToChat('c2')">继续对话</button>
+          <button class="action-btn" onclick="copyFollowup('c2')">复制续接 Prompt</button>
+          <button class="action-btn" id="roll-c2" onclick="rollCard('c2')">滚入下周</button>
+          <span class="ts-text" id="ts-c2"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- c5: docs-shuttle修复 -->
+    <div class="item" data-id="c5" data-cat="tools" data-status="active" data-p="p2">
+      <div class="item-row" onclick="toggleItem('c5')">
+        <div class="item-check" id="chk-c5" onclick="event.stopPropagation();doneToggle('c5')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e05252" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        <div class="item-main">
+          <div class="item-title">docs-shuttle 环境修复 — uv 未安装</div>
+          <div class="item-tags">
+            <span class="tag">工具 &amp; AI</span>
+            <span class="tag blue">P2 · 下次开工</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">20%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-section">
+          <div class="detail-label">进展</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:20%;background:var(--red)"></div></div>
+          <div class="progress-text">启动即失败，uv 未安装，内网文档未获取</div>
+        </div>
+        <div class="detail-section">
+          <div class="steps">
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">识别需使用 docs-shuttle skill 读取内网文档</div></div>
+            <div class="step"><div class="step-dot block">✗</div><div class="step-text">执行失败：uv 命令未找到，curl 访问返回 302 重定向</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">安装 uv：curl -LsSf https://astral.sh/uv/install.sh | sh 后重启 IDE</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">修复后重新读取目标文档并完成解读</div></div>
+          </div>
+          <div class="next-box">
+            <div class="next-box-label">下一步</div>
+            <div class="next-box-text">which uv 确认状态，若缺失则安装，再重跑 docs-shuttle。</div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="jumpToChat('c5')">继续对话</button>
+          <button class="action-btn" onclick="copyFollowup('c5')">复制续接 Prompt</button>
+          <button class="action-btn" id="roll-c5" onclick="rollCard('c5')">滚入下周</button>
+          <span class="ts-text" id="ts-c5"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- c12: 妹妹补充医疗险 -->
+    <div class="item" data-id="c12" data-cat="life" data-status="active" data-p="p2">
+      <div class="item-row" onclick="toggleItem('c12')">
+        <div class="item-check" id="chk-c12" onclick="event.stopPropagation();doneToggle('c12')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#26a69a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <div class="item-main">
+          <div class="item-title">妹妹补充医疗险 — 选定产品待下单</div>
+          <div class="item-tags">
+            <span class="tag">生活事务</span>
+            <span class="tag teal">P2 · 下次开工</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">80%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-section">
+          <div class="detail-label">进展</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:80%;background:var(--teal)"></div></div>
+          <div class="progress-text">已选定首推产品，待下单投保</div>
+        </div>
+        <div class="detail-section">
+          <div class="steps">
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">明确需求：杭州、门急诊+住院、0免赔、个人可购</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">首推：太平洋蓝医保·中高端医疗险（2026版），月费约35.73元起，0免赔</div></div>
+            <div class="step"><div class="step-dot done">✓</div><div class="step-text done">次选：星相守长期医疗险，保证续保20年，可选0免赔</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">确认妹妹身体状况是否符合投保要求，完成下单</div></div>
+          </div>
+          <div class="next-box">
+            <div class="next-box-label">下一步</div>
+            <div class="next-box-text">直接在太平洋官网或代理渠道投保"蓝医保·中高端2026版"，确认0免赔条款。</div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" id="roll-c12" onclick="rollCard('c12')">滚入下周</button>
+          <span class="ts-text" id="ts-c12"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- c13: 尼泊尔旅行 -->
+    <div class="item" data-id="c13" data-cat="travel" data-status="active" data-p="p3">
+      <div class="item-row" onclick="toggleItem('c13')">
+        <div class="item-check" id="chk-c13" onclick="event.stopPropagation();doneToggle('c13')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4f80ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <path d="M21 16v-2l-8-5V3a2 2 0 00-4 0v6L1 14v2l8-2.5V19l-2 1.5V22l4-1 4 1v-1.5L13 19v-5.5L21 16z"/></svg>
+        <div class="item-main">
+          <div class="item-title">尼泊尔8天行程 — 2026.6月雨季已出行（待复盘）</div>
+          <div class="item-tags">
+            <span class="tag">旅行规划</span>
+            <span class="tag" style="color:var(--text3)">P3 · 待整理</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">85%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>行程存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">日期</span><span class="memory-val">6.13-6.21，8天3城：加德满都→奇拉旺→博卡拉</span></div>
+            <div class="memory-row"><span class="memory-key">雨季注意</span><span class="memory-val">博卡拉月降雨527mm，萨朗科特日出低期望，优先独木舟，木斯塘日游作雨天备选</span></div>
+            <div class="memory-row"><span class="memory-key">实用信息</span><span class="memory-val">落地签$30/15天，Ncell电话卡，塔美尔区换现金</span></div>
+          </div>
+        </div>
+        <div class="next-box" style="margin-top:10px">
+          <div class="next-box-label">待整理</div>
+          <div class="next-box-text">将实际旅行体验整理成复盘笔记，补充实用建议。</div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" id="roll-c13" onclick="rollCard('c13')">滚入下周</button>
+          <span class="ts-text" id="ts-c13"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- c14: 抖音退款 -->
+    <div class="item" data-id="c14" data-cat="life" data-status="active" data-p="p1">
+      <div class="item-row" onclick="toggleItem('c14')">
+        <div class="item-check" id="chk-c14" onclick="event.stopPropagation();doneToggle('c14')"></div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e08844" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.85">
+          <path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 010 8h-1"/></svg>
+        <div class="item-main">
+          <div class="item-title">抖音退款 — 驿站未取件自动确认收货</div>
+          <div class="item-tags">
+            <span class="tag">生活事务</span>
+            <span class="tag orange">P1 · 尽快处理</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">30%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="detail-section">
+          <div class="steps">
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">在抖音申请"未收到货"申诉（核心突破口：未实际收货）</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">或与商家协商，要求原件退回</div></div>
+            <div class="step"><div class="step-dot todo"></div><div class="step-text">如有质量问题可在15天内申请退货</div></div>
+          </div>
+          <div class="next-box">
+            <div class="next-box-label">注意</div>
+            <div class="next-box-text">避免先取件再申请，"未实际收货"是核心突破口。</div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" id="roll-c14" onclick="rollCard('c14')">滚入下周</button>
+          <span class="ts-text" id="ts-c14"></span>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ── Section: 已完结 ── -->
+    <div class="section-divider">
+      <div class="section-divider-label">已完结 · 归档</div>
+      <div class="section-divider-line"></div>
+      <div class="section-divider-count" id="done-count"></div>
+    </div>
+
+    <!-- d1: 打捞清单工具 -->
+    <div class="item done-item" data-id="d1" data-cat="tools" data-status="done" data-p="p0">
+      <div class="item-row" onclick="toggleItem('d1')">
+        <div class="item-check done" id="chk-d1" onclick="event.stopPropagation();doneToggle('d1')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <div class="item-main">
+          <div class="item-title">打捞清单工具 weekly-unfinished.html — 三轮迭代完成</div>
+          <div class="item-tags">
+            <span class="tag">工具 &amp; AI</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>成果存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">方向一</span><span class="memory-val">localStorage持久化 + 执行率进度环 + 跨周历史对比 + 滚雪球标记</span></div>
+            <div class="memory-row"><span class="memory-key">方向二</span><span class="memory-val">继续原对话按钮 + Follow-up续接Prompt + 完成时间戳</span></div>
+            <div class="memory-row"><span class="memory-key">方向三</span><span class="memory-val">紧急横幅 + 自动优先级提升 + Toast提醒 + 子夜刷新</span></div>
+            <div class="memory-row"><span class="memory-key">UI重做</span><span class="memory-val">场景×状态双维度filter + 手绘SVG icon + 迷你周历</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d1')">复制续接 Prompt</button>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d2')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d2: 职场主人翁焦虑分析 -->
+    <div class="item done-item" data-id="d2" data-cat="growth" data-status="done" data-p="p1">
+      <div class="item-row" onclick="toggleItem('d2')">
+        <div class="item-check done" id="chk-d2" onclick="event.stopPropagation();doneToggle('d2')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <div class="item-main">
+          <div class="item-title">职场主人翁焦虑 — 根因分析 &amp; 应对框架建立</div>
+          <div class="item-tags">
+            <span class="tag">成长 &amp; 文艺</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>洞察存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">本质</span><span class="memory-val">用情绪投入替代控制感，形成机制来自童年条件性认可 + 高责任心×低边界感</span></div>
+            <div class="memory-row"><span class="memory-key">结论</span><span class="memory-val">主人翁心态曾是有效适应策略，现在运行成本过高，需要升级而非删除</span></div>
+            <div class="memory-row"><span class="memory-key">应对</span><span class="memory-val">设清晰责任边界清单 + 缩小焦虑锚点 + 设定焦虑时间 + 重新定义主人翁</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d3')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d3: 广告策略AB实验外推 -->
+    <div class="item done-item" data-id="d3" data-cat="work" data-status="done" data-p="p1">
+      <div class="item-row" onclick="toggleItem('d3')">
+        <div class="item-check done" id="chk-d3" onclick="event.stopPropagation();doneToggle('d3')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">流量AB实验外推5大陷阱 — 知识沉淀完成</div>
+          <div class="item-tags">
+            <span class="tag">广告策略</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>知识存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">陷阱①</span><span class="memory-val">样本选择偏差（高意向用户优先被实验）</span></div>
+            <div class="memory-row"><span class="memory-key">陷阱②</span><span class="memory-val">SUTVA违反（用户间溢出效应）</span></div>
+            <div class="memory-row"><span class="memory-key">陷阱③</span><span class="memory-val">溢出效应（exp用户行为影响base组）</span></div>
+            <div class="memory-row"><span class="memory-key">陷阱④</span><span class="memory-val">时间效应（短期实验结果不代表长期）</span></div>
+            <div class="memory-row"><span class="memory-key">陷阱⑤</span><span class="memory-val">分层不均（保量机制导致流量质量差异）</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d4')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d4: 朴海英编剧分析 -->
+    <div class="item done-item" data-id="d4" data-cat="growth" data-status="done" data-p="p2">
+      <div class="item-row" onclick="toggleItem('d4')">
+        <div class="item-check done" id="chk-d4" onclick="event.stopPropagation();doneToggle('d4')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        <div class="item-main">
+          <div class="item-title">朴海英编剧风格分析 — 《我的大叔》《我的解放日志》</div>
+          <div class="item-tags">
+            <span class="tag">成长 &amp; 文艺</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>洞察存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">核心理念</span><span class="memory-val">书写"存在的质感"，"成为一个人已经足够"</span></div>
+            <div class="memory-row"><span class="memory-key">手法</span><span class="memory-val">冰山式对话 + 切片式群像 + 慢渗透时间感</span></div>
+            <div class="memory-row"><span class="memory-key">价值</span><span class="memory-val">让普通人被看见，给观众"被理解"的感受而非爽感</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d5')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d5: 母女关系 & 母职惩罚 -->
+    <div class="item done-item" data-id="d5" data-cat="growth" data-status="done" data-p="p2">
+      <div class="item-row" onclick="toggleItem('d5')">
+        <div class="item-check done" id="chk-d5" onclick="event.stopPropagation();doneToggle('d5')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        <div class="item-main">
+          <div class="item-title">母女关系&amp;母职惩罚 — 《为何母女关系如此纠缠》解读</div>
+          <div class="item-tags">
+            <span class="tag">成长 &amp; 文艺</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>洞察存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">书名</span><span class="memory-val">《为何母女关系如此纠缠》（日文原名「母が重くてたまらない」，高石浩一/村本邦子）</span></div>
+            <div class="memory-row"><span class="memory-key">母职惩罚</span><span class="memory-val">女性因成为母亲在职场遭受系统性不利，与"父职奖励"形成对比</span></div>
+            <div class="memory-row"><span class="memory-key">核心观点</span><span class="memory-val">社会对母亲的压迫是母女矛盾根源，女儿的痛苦来自母亲被社会压迫的转嫁</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d6')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d6: 30岁虚无感 -->
+    <div class="item done-item" data-id="d6" data-cat="growth" data-status="done" data-p="p3">
+      <div class="item-row" onclick="toggleItem('d6')">
+        <div class="item-check done" id="chk-d6" onclick="event.stopPropagation();doneToggle('d6')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <div class="item-main">
+          <div class="item-title">30岁虚无感 — 根因与对抗路径建立</div>
+          <div class="item-tags">
+            <span class="tag">成长 &amp; 文艺</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>洞察存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">四大机制</span><span class="memory-val">目标清空 + 预期清算 + 身体信号 + 社会比较</span></div>
+            <div class="memory-row"><span class="memory-key">应对</span><span class="memory-val">从"意义"转向"投入"，缩小尺度，建立超越自我的连接，接受当下即终点</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d7')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d7: Life for Rent 哲理 -->
+    <div class="item done-item" data-id="d7" data-cat="growth" data-status="done" data-p="p3">
+      <div class="item-row" onclick="toggleItem('d7')">
+        <div class="item-check done" id="chk-d7" onclick="event.stopPropagation();doneToggle('d7')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <div class="item-main">
+          <div class="item-title">Dido《Life for Rent》— 存在主义解读</div>
+          <div class="item-tags">
+            <span class="tag">成长 &amp; 文艺</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>洞察存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">核心隐喻</span><span class="memory-val">"租来的人生"=不真正投入，用不认真防御失去</span></div>
+            <div class="memory-row"><span class="memory-key">哲理</span><span class="memory-val">存在主义 + 风险与拥有悖论 + 自我惩罚的清醒，是现代人普遍心理</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d8')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d8: Hybrid Uplift Model -->
+    <div class="item done-item" data-id="d8" data-cat="work" data-status="done" data-p="p2">
+      <div class="item-row" onclick="toggleItem('d8')">
+        <div class="item-check done" id="chk-d8" onclick="event.stopPropagation();doneToggle('d8')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">Hybrid Uplift Model 内部文档解读完成</div>
+          <div class="item-tags">
+            <span class="tag">广告策略</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>技术存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">模型</span><span class="memory-val">半参数（泰勒展开）+ 多塔建模 混合方案</span></div>
+            <div class="memory-row"><span class="memory-key">心理效应</span><span class="memory-val">整数金额（10/20元）存在心理撬动效应，多头塔捕捉非线性突变</span></div>
+            <div class="memory-row"><span class="memory-key">结果</span><span class="memory-val">实验消耗和mROI均正向</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d9')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d9: 券融合策略 -->
+    <div class="item done-item" data-id="d9" data-cat="work" data-status="done" data-p="p2">
+      <div class="item-row" onclick="toggleItem('d9')">
+        <div class="item-check done" id="chk-d9" onclick="event.stopPropagation();doneToggle('d9')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">QCPX×电商用增 券融合策略 — 框架确定</div>
+          <div class="item-tags">
+            <span class="tag">广告策略</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>策略存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">融合价值</span><span class="memory-val">DAC增长20-30%，QCPX消耗增长5-10%</span></div>
+            <div class="memory-row"><span class="memory-key">成本分账</span><span class="memory-val">三方案：边际贡献 / 约束剩余空间比例 / 联合ROI</span></div>
+            <div class="memory-row"><span class="memory-key">路径</span><span class="memory-val">小流量验证 + 梯度融合</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d10')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d10: AI Agent架构理解 -->
+    <div class="item done-item" data-id="d10" data-cat="tools" data-status="done" data-p="p3">
+      <div class="item-row" onclick="toggleItem('d10')">
+        <div class="item-check done" id="chk-d10" onclick="event.stopPropagation();doneToggle('d10')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <div class="item-main">
+          <div class="item-title">AI Agent 架构理解 — Skill/Memory/Soul 三概念</div>
+          <div class="item-tags">
+            <span class="tag">工具 &amp; AI</span>
+            <span class="tag green">已完成</span>
+          </div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>概念存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">Soul</span><span class="memory-val">核心人格和决策准则（通过System Prompt实现）</span></div>
+            <div class="memory-row"><span class="memory-key">Memory</span><span class="memory-val">跨对话信息存储（短期/长期/工作记忆，常用RAG/向量数据库）</span></div>
+            <div class="memory-row"><span class="memory-key">Skill</span><span class="memory-val">可调用的具体操作能力（可插拔组合）</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- d11: Claude模型对比 -->
+    <div class="item done-item" data-id="d11" data-cat="tools" data-status="done" data-p="p3">
+      <div class="item-row" onclick="toggleItem('d11')">
+        <div class="item-check done" id="chk-d11" onclick="event.stopPropagation();doneToggle('d11')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <div class="item-main">
+          <div class="item-title">Claude Sonnet vs Opus 模型区别理解</div>
+          <div class="item-tags"><span class="tag">工具 &amp; AI</span><span class="tag green">已完成</span></div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>知识存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">Sonnet 4.6</span><span class="memory-val">速度快、价格低（5.5x），适合日常任务</span></div>
+            <div class="memory-row"><span class="memory-key">Opus 4.7</span><span class="memory-val">推理能力更强、价格更贵（9x）</span></div>
+            <div class="memory-row"><span class="memory-key">切换</span><span class="memory-val">同一对话中切换模型安全，上下文完整保留</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d11')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d12: 流量AB+货补advv分析 -->
+    <div class="item done-item" data-id="d12" data-cat="work" data-status="done" data-p="p1">
+      <div class="item-row" onclick="toggleItem('d12')">
+        <div class="item-check done" id="chk-d12" onclick="event.stopPropagation();doneToggle('d12')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">[券效率] 流量AB+货补：advv近似cost收益的逻辑与漏洞分析</div>
+          <div class="item-tags"><span class="tag">广告策略</span><span class="tag green">已完成</span></div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>结论存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">核心逻辑</span><span class="memory-val">流量AB实验下，exp/base bid同调，但exp的advv会涨、base不涨，因此调价收回的cost≈exp预期花费增长</span></div>
+            <div class="memory-row"><span class="memory-key">漏洞分析</span><span class="memory-val">若调价是分页面进行且实验组只在特定页面做差异化，该逻辑基本成立；跨页面时存在溢出效应</span></div>
+            <div class="memory-row"><span class="memory-key">货补核心公式</span><span class="memory-val">Δcost = q / (ROI_target - 边际ROI)；边际ROI是货补效率的核心变量</span></div>
+            <div class="memory-row"><span class="memory-key">三步建模</span><span class="memory-val">q→bid→cost 拆解：券面额影响bid，bid影响竞价结果，竞价结果影响实际消耗</span></div>
+            <div class="memory-row"><span class="memory-key">PCOC口径</span><span class="memory-val">GMV PCOC（商品维度）vs ctcvr PCOC（转化维度）口径不同，不可混用</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d12')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d13: QCPX三类建模升级 -->
+    <div class="item done-item" data-id="d13" data-cat="work" data-status="done" data-p="p1">
+      <div class="item-row" onclick="toggleItem('d13')">
+        <div class="item-check done" id="chk-d13" onclick="event.stopPropagation();doneToggle('d13')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">[券效率] QCPX三类建模升级：多头分档/Hybrid/无处置样本因果</div>
+          <div class="item-tags"><span class="tag">广告策略</span><span class="tag green">已完成</span></div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>结论存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">多头分档</span><span class="memory-val">对券面额分档建塔，每档单独建头，捕捉不同面额的非线性响应（尤其10/20元整数心理效应）</span></div>
+            <div class="memory-row"><span class="memory-key">Hybrid</span><span class="memory-val">公式派（泰勒展开的半参数）+ 数据派（多塔）融合；判断用公式派还是数据派取决于数据量和非线性程度</span></div>
+            <div class="memory-row"><span class="memory-key">无处置样本</span><span class="memory-val">针对从未被发过券的用户，无法用传统uplift建模；用因果推断/工具变量方法处理反事实</span></div>
+            <div class="memory-row"><span class="memory-key">判断口诀</span><span class="memory-val">数据量够+明显非线性→数据派；数据量少+关系可参数化→公式派</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d13')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d14: 新特征上线幸存者偏差 -->
+    <div class="item done-item" data-id="d14" data-cat="work" data-status="done" data-p="p1">
+      <div class="item-row" onclick="toggleItem('d14')">
+        <div class="item-check done" id="chk-d14" onclick="event.stopPropagation();doneToggle('d14')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">[券效率] 新特征上线初期「必然观测到高估」的幸存者偏差规律</div>
+          <div class="item-tags"><span class="tag">广告策略</span><span class="tag green">已完成</span></div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>结论存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">规律</span><span class="memory-val">新特征上线初期，PCOC必然偏高（高估），这是结构性规律而非模型问题</span></div>
+            <div class="memory-row"><span class="memory-key">根因</span><span class="memory-val">初期只有「被选中发券」的用户样本（幸存者），这些人本来就高意向；模型在偏向样本上训练→高估普通用户转化率</span></div>
+            <div class="memory-row"><span class="memory-key">收敛过程</span><span class="memory-val">随样本积累、负样本增多、模型迭代，PCOC逐渐回落到1；但若一直用高PCOC的模型选人→偏差自我强化</span></div>
+            <div class="memory-row"><span class="memory-key">实践建议</span><span class="memory-val">上线初期不要因为「PCOC高」就急于降bid/降券面额；等样本收敛（1-2周）后再做策略调整</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d14')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d15: Loss/AUC/PCOC使用规范 -->
+    <div class="item done-item" data-id="d15" data-cat="work" data-status="done" data-p="p2">
+      <div class="item-row" onclick="toggleItem('d15')">
+        <div class="item-check done" id="chk-d15" onclick="event.stopPropagation();doneToggle('d15')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">[券效率] 业务策略侧 Loss / AUC / PCOC 使用规范与场景选择</div>
+          <div class="item-tags"><span class="tag">广告策略</span><span class="tag green">已完成</span></div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>结论存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">判断口诀</span><span class="memory-val">能算「预估值 vs 真实值」→用PCOC；只有「分组/特征值 vs 真实标签」→用AUC</span></div>
+            <div class="memory-row"><span class="memory-key">Loss</span><span class="memory-val">衡量预估偏差，可微，用于训练；PCOC是Loss的业务化可读版本</span></div>
+            <div class="memory-row"><span class="memory-key">AUC</span><span class="memory-val">衡量排序能力，不可微，用于评估；任何能打分的东西（特征/分群/规则）都能算AUC</span></div>
+            <div class="memory-row"><span class="memory-key">PCOC</span><span class="memory-val">业务诊断首选，能看出高估/低估及分层问题；已入模预估问题优先用PCOC</span></div>
+            <div class="memory-row"><span class="memory-key">高单人群</span><span class="memory-val">效率低先看PCOC（修偏），PCOC正常但效率仍低再看AUC（重建模）</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d15')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- d16: QCPX排序计费分离 -->
+    <div class="item done-item" data-id="d16" data-cat="work" data-status="done" data-p="p2">
+      <div class="item-row" onclick="toggleItem('d16')">
+        <div class="item-check done" id="chk-d16" onclick="event.stopPropagation();doneToggle('d16')">✓</div>
+        <svg class="item-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+          <rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/>
+          <path d="M2 21h20" stroke-width="1.5"/></svg>
+        <div class="item-main">
+          <div class="item-title">[券效率] QCPX排序计费分离：bid×ctcvr(q) vs (bid-q)×ctcvr(q)</div>
+          <div class="item-tags"><span class="tag">广告策略</span><span class="tag green">已完成</span></div>
+        </div>
+        <div class="item-right"><span class="item-pct">100%</span><span class="item-chevron">›</span></div>
+      </div>
+      <div class="item-detail">
+        <div class="memory-box" style="margin-top:12px">
+          <div class="memory-box-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/></svg>结论存档</div>
+          <div class="memory-kv">
+            <div class="memory-row"><span class="memory-key">两种公式</span><span class="memory-val">bid×ctcvr(q)：不扣券面额排序；(bid-q)×ctcvr(q)：扣除券成本后排序</span></div>
+            <div class="memory-row"><span class="memory-key">本质差异</span><span class="memory-val">前者是「广告主视角的价值」，后者是「平台净收益视角」；后者对高面额券更不利（bid-q更小）</span></div>
+            <div class="memory-row"><span class="memory-key">计费分离</span><span class="memory-val">排序用bid×ctcvr(q)但计费用(bid-q)×ctcvr(q)：排序时不惩罚高券，但实际计费扣掉券成本，鼓励发券同时保护平台收益</span></div>
+            <div class="memory-row"><span class="memory-key">策略影响</span><span class="memory-val">若排序不扣q，高面额券广告主更容易赢得流量；计费扣q后广告主ROI自然平衡，无需额外约束</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyFollowup('d16')">复制续接 Prompt</button>
+        </div>
+      </div>
+    </div>
+
+
+  </div><!-- /list -->
+</div><!-- /app -->
+
+<!-- History Modal -->
+<div class="modal-bg" id="hist-modal" onclick="if(event.target===this)closeHist()">
+  <div class="modal">
+    <h3>历史执行率</h3>
+    <div class="hist-row"><div class="hist-week">5/12-18</div><div class="hist-track"><div class="hist-fill" style="width:40%;background:var(--red)"></div></div><div class="hist-pct">40%</div></div>
+    <div class="hist-row"><div class="hist-week">5/19-25</div><div class="hist-track"><div class="hist-fill" style="width:55%;background:var(--orange)"></div></div><div class="hist-pct">55%</div></div>
+    <div class="hist-row"><div class="hist-week">6/09-15</div><div class="hist-track"><div class="hist-fill" style="width:70%;background:var(--accent)"></div></div><div class="hist-pct">70%</div></div>
+    <div class="hist-row"><div class="hist-week">6/23-29</div><div class="hist-track"><div class="hist-fill" style="width:60%;background:var(--orange)"></div></div><div class="hist-pct">60%</div></div>
+    <div class="hist-row"><div class="hist-week">本周</div><div class="hist-track"><div class="hist-fill" id="hist-cur" style="width:0%;background:var(--green)"></div></div><div class="hist-pct" id="hist-cur-pct">—</div></div>
+    <button class="modal-close" onclick="closeHist()">关闭</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap"><div class="toast" id="toast"></div></div>
+
+<script>
+// ── State ──
+const STORE_KEY = 'pal_v4';
+let state = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+function saveState() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+// ── Memo ──
+const MEMO_KEY = 'pal_memo_v1';
+let memoData = JSON.parse(localStorage.getItem(MEMO_KEY) || '{"text":"","pins":[]}');
+let memoSaveTimer = null;
+
+function initMemo() {
+  const ta = document.getElementById('memo-ta');
+  if (ta) ta.value = memoData.text || '';
+  renderMemoChips();
+}
+
+function saveMemo(val) {
+  memoData.text = val;
+  localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+  // debounce saved indicator
+  clearTimeout(memoSaveTimer);
+  const el = document.getElementById('memo-saved');
+  if (el) {
+    el.classList.add('show');
+    memoSaveTimer = setTimeout(() => el.classList.remove('show'), 1500);
+  }
+}
+
+function clearMemo() {
+  if (!memoData.text && !memoData.pins.length) return;
+  // Pin current text before clearing if non-empty
+  const txt = (document.getElementById('memo-ta')?.value || '').trim();
+  if (txt) {
+    memoData.pins.unshift({ id: Date.now(), text: txt.slice(0, 80) });
+    if (memoData.pins.length > 6) memoData.pins = memoData.pins.slice(0, 6);
+  }
+  memoData.text = '';
+  const ta = document.getElementById('memo-ta');
+  if (ta) ta.value = '';
+  localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+  renderMemoChips();
+}
+
+function removePin(id) {
+  memoData.pins = memoData.pins.filter(p => p.id !== id);
+  localStorage.setItem(MEMO_KEY, JSON.stringify(memoData));
+  renderMemoChips();
+}
+
+function renderMemoChips() {
+  const el = document.getElementById('memo-chips');
+  if (!el) return;
+  el.innerHTML = memoData.pins.map(p =>
+    `<div class="memo-chip"><span onclick="restorePin(${p.id})" style="cursor:pointer">${escHtml(p.text)}</span><button class="memo-chip-del" onclick="removePin(${p.id})">×</button></div>`
+  ).join('');
+}
+
+function restorePin(id) {
+  const pin = memoData.pins.find(p => p.id === id);
+  if (!pin) return;
+  const ta = document.getElementById('memo-ta');
+  if (ta) { ta.value = pin.text; saveMemo(pin.text); }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Filter state ──
+let activeCat = 'all', activeStatus = 'all';
+
+// ── Calendar week offset (0=本周, -1=上周, etc.) ──
+let calWeekOffset = 0;
+
+// ── Week definitions (Mon date, label) for known weeks ──
+// Key = "YYYY-Www" (ISO week)
+const weekData = {
+  '2026-W22': { label: '5/25周', days: [25,26,27,28,29,30,31], month: 5, tasks: [28], urgent: [] },
+  '2026-W24': { label: '6/08周', days: [8,9,10,11,12,13,14], month: 6, tasks: [10,11], urgent: [] },
+  '2026-W26': { label: '6/22周', days: [22,23,24,25,26,27,28], month: 6, tasks: [24,26], urgent: [26] },
+  '2026-W27': { label: '6/29周', days: [29,30,1,2,3,4,5], month: 6, tasks: [30,1], urgent: [1] },
+};
+const weekKeys = Object.keys(weekData).sort();
+// Current week is 2026-W27
+const BASE_WEEK_KEY = '2026-W27';
+const BASE_WEEK_IDX = weekKeys.indexOf(BASE_WEEK_KEY);
+
+function getWeekKey(offset) {
+  const idx = Math.max(0, Math.min(weekKeys.length - 1, BASE_WEEK_IDX + offset));
+  return weekKeys[idx];
+}
+
+function buildCalendar() {
+  const key = getWeekKey(calWeekOffset);
+  const wk = weekData[key];
+  if (!wk) return;
+
+  // Update week label
+  document.getElementById('cal-week-label').textContent = wk.label + (calWeekOffset === 0 ? ' · 本周' : '');
+
+  // Build week chips
+  const chipsEl = document.getElementById('cal-week-chips');
+  chipsEl.innerHTML = weekKeys.map(k => {
+    const on = k === key ? ' on' : '';
+    return `<button class="cal-week-chip${on}" onclick="jumpToWeek('${k}')">${weekData[k].label}</button>`;
+  }).join('') + `<button class="cal-week-chip${calWeekOffset === 0 ? ' on' : ''}" onclick="jumpToWeek('current')">本周</button>`;
+
+  // Build grid
+  const cal = document.getElementById('mini-cal');
+  const dows = ['一','二','三','四','五','六','日'];
+  const todayDate = new Date().getDate();
+  const todayMonth = new Date().getMonth() + 1;
+
+  const calIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-right:6px">
+    <rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`;
+
+  const daysHtml = wk.days.map((d, i) => {
+    const isToday = d === todayDate && wk.month === todayMonth && calWeekOffset === 0;
+    const hasTasks = wk.tasks.includes(d);
+    const isUrgent = wk.urgent.includes(d);
+    const cls = ['cal-num', isToday ? 'today' : '', hasTasks ? 'has-task' : '', isUrgent && !isToday ? 'urgent-day' : ''].filter(Boolean).join(' ');
+    const sep = i === 4 ? `<div class="cal-sep"></div>` : '';
+    return `${sep}<div class="cal-day">
+      <div class="cal-dow">${dows[i]}</div>
+      <div class="${cls}">${d}</div>
+    </div>`;
+  }).join('');
+
+  cal.innerHTML = calIcon + daysHtml;
+
+  // Apply week filter to items
+  applyWeekFilter(key);
+}
+
+function jumpToWeek(key) {
+  if (key === 'current') {
+    calWeekOffset = 0;
+  } else {
+    calWeekOffset = weekKeys.indexOf(key) - BASE_WEEK_IDX;
+  }
+  buildCalendar();
+}
+
+function shiftWeek(delta) {
+  const newIdx = BASE_WEEK_IDX + calWeekOffset + delta;
+  if (newIdx < 0 || newIdx >= weekKeys.length) return;
+  calWeekOffset += delta;
+  buildCalendar();
+}
+
+// Week filter: map week keys to item IDs discussed that week
+const weekItemMap = {
+  '2026-W22': ['c12', 'c13'],                   // 5/25: 尼泊尔, 妹妹医保
+  '2026-W24': ['d4', 'd5', 'd6', 'd7'],          // 6/08: 朴海英, 母女, 30岁虚无, Life for Rent
+  '2026-W26': ['c2', 'd8', 'd9', 'd10', 'd11'],  // 6/22: 房价AI, Hybrid, 券融合, AI架构, Claude
+  '2026-W27': ['c1', 'c3', 'c4', 'c5', 'c14', 'd1', 'd2', 'd3', 'd12', 'd13', 'd14', 'd15', 'd16'], // 6/29本周
+};
+
+function applyWeekFilter(key) {
+  // If current week, don't filter by week (show all based on cat/status)
+  if (key === BASE_WEEK_KEY) {
+    // Just re-run normal filters
+    applyFilters();
+    return;
+  }
+  const relevant = weekItemMap[key] || [];
+  document.querySelectorAll('.item[data-id]').forEach(el => {
+    const id = el.dataset.id;
+    el.classList.toggle('hidden', !relevant.includes(id));
+  });
+}
+
+// ── Follow-up prompts ──
+const followups = {
+  // 未完成
+  c1: '我之前在分析深圳房产通过阿里拍卖委托出售的风险。已识别4个高风险点：①佣金从2.5%涨至3%未明确含税；②流拍费用定义模糊（"适当费用"表述）；③买家资质审核机制回答敷衍；④违约保证金分配方案不清晰。乐有家速销模式也有独家委托绑定陷阱（1000元保证金）。\n现在需要：1）帮我起草3条追问话术；2）一封要求查看合同样本的邮件；3）如果对方还是敷衍，还有哪些强化谈判筹码？',
+  c3: '我在规划2026年10月2-7日新西兰皇后镇+瓦纳卡5天旅行。已确定租3天车方案（10.4-10.7，省500-1000元），前两天Uber出行。行程：10.2-4皇后镇市区→10.4箭镇一日游→10.4-7自驾皇冠山口→瓦纳卡→格伦诺基。\n现在需要：1）在Rentalcars/JUCY/Discover Cars中帮我比较性价比（需买全险）；2）推荐皇后镇市区3晚和瓦纳卡湖边3晚住宿。',
+  c4: '我之前分析了PCOC选择偏差的根因：早期exp样本选择偏差（高意向用户优先被发券）→模型误学→初期PCOC高估→样本增多后校准。\n现在想推进：1）设计一个线上实验方案，能检测并量化选择偏差的程度；2）评估IPW（逆概率加权）或DRO方法在早期阶段消偏的可行性；3）与现有PCOC校准方案的结合路径。',
+  c2: '我之前建立了中国房价的制度性垄断逻辑框架（土地财政/货币超发/城镇化/权益绑定）和AI双向影响分析（短期财富效应 vs 中长期就业动摇）。\n现在想深入：1）AI极化分配下，哪类知识工作者购房决策逻辑会根本性改变？具体画像是什么？2）中国政策能否在就业大规模替代前提前托底？有哪些现实约束？',
+  c5: 'docs-shuttle 环境修复：当时因uv命令未安装导致skill执行失败（curl直接访问内网文档返回302）。\n现在：1）请先帮我确认 which uv 的状态；2）若缺失请给出安装命令；3）修复后重新读取目标快手内网文档并完成解读。',
+  // 已完结 - 工具/AI
+  d1: '打捞清单工具（weekly-unfinished.html）已完成三轮迭代，功能包括localStorage持久化、双维度filter、手绘SVG icon、迷你周历、续接Prompt等。\n我想继续迭代：1）当前还有哪些值得做的产品方向？2）能否加一个「AI自动打捞」功能，从对话recap里自动更新卡片状态？',
+  d2: '我之前分析了职场主人翁焦虑的根因：用情绪投入替代控制感，形成机制来自童年条件性认可+高责任心×低边界感。结论是需要「升级而非删除」主人翁心态。\n现在想深入：1）如何设计一个切实可行的「责任边界清单」？具体包含哪些维度和判断标准？2）在实际工作场景中，如何识别「哪些焦虑是我的责任范围」和「哪些是我不需要承担的」？',
+  d3: '我之前总结了流量AB实验外推大盘的5大陷阱：样本选择偏差、SUTVA违反、溢出效应、时间效应、分层不均。\n现在想深入：1）在快手广告发券的具体场景下，哪个陷阱最常见、影响最大？2）有没有针对性的实验设计方法来降低这些陷阱的影响？比如switchback实验、双重差分等。',
+  d4: '我之前分析了朴海英编剧（《我的大叔》《我的解放日志》）的创作风格：书写"存在的质感"，冰山式对话+切片式群像+慢渗透时间感。\n我想延伸探讨：1）朴海英这种写法和村上春树的内向叙事有什么共同点和差异？2）"让普通人被看见"的叙事策略，在商业内容（短视频、广告）里能否借鉴？怎么借鉴？',
+  d5: '我之前了解了《为何母女关系如此纠缠》（日文「母が重くてたまらない」）和"母职惩罚"概念——女性因成为母亲在职场遭受系统性不利。\n我想继续探讨：1）母职惩罚在中国的具体表现形式和数据；2）对于夹在「职场惩罚」和「传统期待」之间的女性，有哪些值得参考的应对策略？',
+  d6: '我之前分析了30岁虚无感的四大机制（目标清空/预期清算/身体信号/社会比较），应对方向是从"意义"转向"投入"。\n我想深入：1）"投入感"的具体来源有哪些类型？如何设计日常生活来稳定地获取投入感？2）存在主义哲学家（加缪/萨特/海德格尔）对这个问题分别有什么不同的回答？',
+  d7: 'Dido《Life for Rent》的核心：用不认真防御失去，"租来的人生"。\n想继续聊：1）这种"租客心态"在现代人中普遍到什么程度？有哪些心理学研究支持？2）从行为设计角度，有哪些方法能帮助一个人从"租客"变成"业主"——真正投入而非只是旁观自己的生活？',
+  d8: '我之前解读了QCPX的Hybrid Uplift Model：半参数（泰勒展开）+多塔建模融合，捕捉整数金额（10/20元）的心理撬动效应，实验消耗和mROI均正向。\n我想继续深入：1）多头塔的"头数"如何确定最优值？有没有评估框架？2）整数金额的心理效应能否用实验设计来量化（比如A/B测试不同面额梯度）？',
+  d9: 'QCPX×电商用增券融合策略：融合可使DAC增长20-30%、QCPX消耗增长5-10%，推荐三种成本分账方案。\n我想继续讨论：1）三种分账方案（边际贡献/约束剩余空间比例/联合ROI）在实际落地时，数据获取难度分别如何？哪个最可行？2）融合实验的小流量验证怎么设计？如何判断"融合是否成功"？',
+  d10: 'AI Agent的Soul/Memory/Skill三层架构已理解（Soul=System Prompt，Memory=跨对话存储，Skill=可插拔能力）。\n我想继续探讨：1）当前我的MyFlicker使用场景里，哪些Soul规则值得显式写出来？2）Memory的哪些内容应该存"user维度"，哪些应该存"repos维度"？有没有更好的分类框架？',
+  d11: 'Claude Sonnet 4.6（速度快/5.5x）和Opus 4.7（推理强/9x）已了解。\n我想深入：1）在我日常的广告策略分析、房产决策、旅行规划这几类任务里，各自更适合用哪个模型？2）有没有"任务分流"的最佳实践——什么时候值得用更贵的Opus？',
+  // 已完结 - 券效率系列
+  d12: '我之前分析了流量AB+货补场景下advv近似cost收益的逻辑。结论是：exp/base bid同调，exp的advv会涨而base不涨，调价收回的cost≈exp预期花费增长；货补核心公式 Δcost=q/(ROI_target-边际ROI)；三步建模：q→bid→cost；GMV PCOC和ctcvr PCOC口径不可混用。\n想继续讨论：1）在实际货补投放中，如何实时监控「边际ROI」这个核心变量？2）q→bid→cost三步建模里，哪一步的不确定性最大？怎么降低？',
+  d13: 'QCPX三类建模升级已理解：多头分档（每档独立建头，捕捉非线性）、Hybrid（公式派+数据派融合）、无处置样本因果（针对从未被发券的用户）。\n想深入：1）无处置样本问题在工具变量方法里，有哪些候选IV（工具变量）比较自然？2）多头分档和Hybrid能否融合在一起用？会有什么新问题？',
+  d14: '新特征上线初期「必然观测到高估」的幸存者偏差规律已理解：初期只有被选中的高意向用户样本→模型误学→PCOC高估→样本增多后收敛。实践建议是上线初期不要急于调整，等1-2周收敛。\n想继续讨论：1）如何判断「PCOC已经收敛」？有没有统计检验方法？2）如果业务压力必须在初期就做调整，有没有在偏差状态下仍然合理决策的框架？',
+  d15: '业务策略侧的Loss/AUC/PCOC使用规范已清晰：能算预估值vs真实值→PCOC；只有分组/特征vs标签→AUC；高单人群先看PCOC修偏，PCOC正常再看AUC重建模。\n想继续深入：1）有没有PCOC和AUC同时异常的典型场景？怎么排查？2）在快手QCPX这个具体场景里，什么情况下我（作为业务侧PM）真的需要主动要求算法侧去看AUC？',
+  d16: 'QCPX排序计费分离已理解：排序用bid×ctcvr(q)（不扣券成本），计费用(bid-q)×ctcvr(q)（扣除券成本）。排序不惩罚高面额券，计费扣q后广告主ROI自动平衡。\n想继续讨论：1）这种排序计费分离的设计，对「小面额vs大面额券」的分发比例有什么影响？是否会造成大券挤压小券的问题？2）如果要引入「转化率竞价（CTCVR bid）」，排序计费公式应该怎么调整？',
+};
+
+
+// ── Chat links (placeholder, replace with real thread IDs) ──
+const chatLinks = {
+  c1: 'https://myflicker.corp.kuaishou.com',
+  c3: 'https://myflicker.corp.kuaishou.com',
+  c4: 'https://myflicker.corp.kuaishou.com',
+  c2: 'https://myflicker.corp.kuaishou.com',
+  c5: 'https://myflicker.corp.kuaishou.com',
+};
+
+// ── Toggle item expand ──
+function toggleItem(id) {
+  const el = document.querySelector(`.item[data-id="${id}"]`);
+  if (el) el.classList.toggle('open');
+}
+
+// ── Done toggle ──
+function doneToggle(id) {
+  const el = document.querySelector(`.item[data-id="${id}"]`);
+  const chk = document.getElementById('chk-' + id);
+  if (!el || !chk) return;
+  const isDone = el.classList.toggle('done-item');
+  chk.classList.toggle('done', isDone);
+  chk.textContent = isDone ? '✓' : '';
+  el.setAttribute('data-status', isDone ? 'done' : 'active');
+  if (!state[id]) state[id] = {};
+  state[id].done = isDone;
+  state[id].ts = isDone ? Date.now() : null;
+  const tsEl = document.getElementById('ts-' + id);
+  if (tsEl) tsEl.textContent = isDone ? '✓ ' + new Date().toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  saveState();
+  updateStats();
+  applyFilters();
+  showToast(isDone ? '已完成 ✓' : '已取消完成');
+}
+
+// ── Roll card ──
+function rollCard(id) {
+  const btn = document.getElementById('roll-' + id);
+  if (!btn) return;
+  btn.classList.add('rolled');
+  btn.textContent = '已滚入下周 ↗';
+  btn.disabled = true;
+  if (!state[id]) state[id] = {};
+  state[id].rolled = true;
+  saveState();
+  showToast('已标记滚入下周 ↗');
+}
+
+// ── Jump to chat ──
+function jumpToChat(id) {
+  const url = chatLinks[id];
+  if (url) { window.open(url, '_blank'); }
+  else { showToast('暂无对话链接'); }
+}
+
+// ── Copy followup ──
+function copyFollowup(id) {
+  const text = followups[id];
+  if (!text) { showToast('暂无续接 Prompt'); return; }
+  navigator.clipboard.writeText(text).then(() => showToast('Prompt 已复制 ✓')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('Prompt 已复制 ✓');
+  });
+}
+
+// ── Filters ──
+function applyFilters() {
+  let activeCount = 0, doneCount = 0;
+  document.querySelectorAll('.item[data-id]').forEach(el => {
+    const cat = el.dataset.cat || '';
+    const status = el.dataset.status || 'active';
+    const isDone = status === 'done';
+    const isUrgent = el.classList.contains('urgent');
+    const catOk = activeCat === 'all' || cat === activeCat;
+    let statusOk = true;
+    if (activeStatus === 'active') statusOk = !isDone;
+    else if (activeStatus === 'done') statusOk = isDone;
+    else if (activeStatus === 'urgent') statusOk = isUrgent && !isDone;
+    const visible = catOk && statusOk;
+    el.classList.toggle('hidden', !visible);
+    if (visible) { isDone ? doneCount++ : activeCount++; }
+  });
+  const ac = document.getElementById('active-count');
+  const dc = document.getElementById('done-count');
+  if (ac) ac.textContent = activeCat === 'all' && activeStatus === 'all' ? activeCount + ' 项' : '';
+  if (dc) dc.textContent = activeCat === 'all' && activeStatus === 'all' ? doneCount + ' 项' : '';
+}
+
+// ── Tab click ──
+document.getElementById('cat-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('#cat-tabs .tab').forEach(t => t.classList.remove('on'));
+  tab.classList.add('on');
+  activeCat = tab.dataset.cat;
+  applyFilters();
+});
+document.getElementById('status-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('#status-tabs .tab').forEach(t => t.classList.remove('on'));
+  tab.classList.add('on');
+  activeStatus = tab.dataset.status;
+  applyFilters();
+});
+
+// ── Stats ──
+function updateStats() {
+  const items = document.querySelectorAll('.item[data-id]');
+  let total = 0, done = 0;
+  items.forEach(el => {
+    if (el.dataset.status !== 'done') {
+      total++;
+      if (el.classList.contains('done-item')) done++;
+    }
+  });
+  // count originally-done items separately
+  let totalDone = document.querySelectorAll('.item.done-item').length;
+  let notDone = items.length - totalDone;
+  document.getElementById('stat-left').textContent = notDone;
+  document.getElementById('stat-done').textContent = totalDone;
+  const pct = items.length > 0 ? Math.round(totalDone / items.length * 100) : 0;
+  document.getElementById('exec-fill').style.width = pct + '%';
+  document.getElementById('exec-label').textContent = totalDone + ' / ' + items.length + ' 完成';
+  const hc = document.getElementById('hist-cur');
+  const hp = document.getElementById('hist-cur-pct');
+  if (hc) hc.style.width = pct + '%';
+  if (hp) hp.textContent = pct + '%';
+}
+
+// ── History modal ──
+function openHist() { document.getElementById('hist-modal').classList.add('open'); }
+function closeHist() { document.getElementById('hist-modal').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHist(); });
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Restore state ──
+function initFromState() {
+  Object.entries(state).forEach(([id, s]) => {
+    if (s.done) {
+      const el = document.querySelector(`.item[data-id="${id}"]`);
+      const chk = document.getElementById('chk-' + id);
+      if (el) { el.classList.add('done-item'); el.setAttribute('data-status','done'); }
+      if (chk) { chk.classList.add('done'); chk.textContent = '✓'; }
+      const tsEl = document.getElementById('ts-' + id);
+      if (tsEl && s.ts) tsEl.textContent = '✓ ' + new Date(s.ts).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+    if (s.rolled) {
+      const btn = document.getElementById('roll-' + id);
+      if (btn) { btn.classList.add('rolled'); btn.textContent = '已滚入下周 ↗'; btn.disabled = true; }
+    }
+  });
+  updateStats();
+  applyFilters();
+}
+
+buildCalendar();
+initMemo();
+initFromState();
+</script>
+</body>
+</html>
